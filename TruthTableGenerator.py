@@ -31,7 +31,9 @@ class Proposition:
 
     # <->
     def __eq__(self, rhs):
-        return Proposition((self.value and rhs.value) or (not self.value and not rhs.value))
+        return Proposition(
+            (self.value and rhs.value) or (not self.value and not rhs.value)
+        )
 
     # ^
     def __ne__(self, rhs):
@@ -46,22 +48,29 @@ def getTableElement(s: str, markdown=False) -> str:
 
 
 def getPropositions(s: str) -> List[str]:
-    return list(sorted(set(re.findall(r'\w+', s.replace("T", "").replace("F", "")))))
+    return list(sorted(set(re.findall(r"\w+", s.replace("T", "").replace("F", "")))))
 
 
 def getEvalExpression(s: str):
     # not
-    s = s.replace("!", "~").replace("not", "~").replace(
-        "¬", "~").replace(r"\neg", "~")
+    s = s.replace("!", "~").replace("not", "~").replace("¬", "~").replace(r"\neg", "~")
     # and
-    s = s.replace("&", "*").replace(r"\wedge", "*").replace("and",
-                                                            "*").replace("∧", "*")
+    s = (
+        s.replace("&", "*")
+        .replace(r"\wedge", "*")
+        .replace("and", "*")
+        .replace("∧", "*")
+    )
     # or
-    s = s.replace("|", "+").replace(r"\vee", "+").replace("or",
-                                                          "+").replace("∨", "+").replace("v", "+")
+    s = (
+        s.replace("|", "+")
+        .replace(r"\vee", "+")
+        .replace("or", "+")
+        .replace("∨", "+")
+        .replace("v", "+")
+    )
     # <->
-    s = s.replace("<->", "==").replace("↔",
-                                       "==").replace(r"\leftrightarrow", "==")
+    s = s.replace("<->", "==").replace("↔", "==").replace(r"\leftrightarrow", "==")
     # ->
     s = s.replace("->", ">>").replace("→", ">>").replace(r"\rightarrow", ">>")
 
@@ -71,11 +80,23 @@ def getEvalExpression(s: str):
 
 
 def getLatexExpression(s: str) -> str:
-    return s.replace("~", r" \neg ").replace("*", r" \wedge ").replace(
-        "+", r" \vee ").replace("==", r" \leftrightarrow ").replace(">>", r" \rightarrow ").replace("!=", r" \oplus ")
+    return (
+        s.replace("~", r" \neg ")
+        .replace("*", r" \wedge ")
+        .replace("+", r" \vee ")
+        .replace("==", r" \leftrightarrow ")
+        .replace(">>", r" \rightarrow ")
+        .replace("!=", r" \oplus ")
+    )
 
 
-def generateTruthTable(expression: str, reverse=False, markdown=False, file=sys.stdout) -> None:
+def removeStupidChars(s: str) -> str:
+    return s.replace("↔", "<=>").replace("→", "->").replace("∨", "v")
+
+
+def generateTruthTable(
+    expression: str, reverse=False, markdown=False, file=sys.stdout
+) -> None:
     # True
     T = Proposition(True)
     # False
@@ -84,6 +105,7 @@ def generateTruthTable(expression: str, reverse=False, markdown=False, file=sys.
     expression = expression.strip()
     # eval string
     s = getEvalExpression(expression)
+    expression = removeStupidChars(expression)
 
     # tautology & conflict
     tautology = True
@@ -98,43 +120,56 @@ def generateTruthTable(expression: str, reverse=False, markdown=False, file=sys.
     buf = [Proposition() for i in range(n)] + [T, F]
 
     if markdown:
-        print("|", end='', file=file)
+        print("|", end="", file=file)
 
     for i in props + [expression]:
-        print(getTableElement(i, markdown=markdown), sep='', end='', file=file)
+        print(getTableElement(i, markdown=markdown), sep="", end="", file=file)
     print(file=file)
     if markdown:
-        print("|", end='', file=file)
+        print("|", end="", file=file)
         for i in range(n + 1):
-            print(" :--: |", end='', file=file)
+            print(" :--: |", end="", file=file)
         print()
 
     states = range(0, 1 << n)
 
     for state in reversed(states) if reverse else states:
         if markdown:
-            print("|", end='', file=file)
+            print("|", end="", file=file)
         for i in range(n):
             buf[i].value = (state >> (n - i - 1)) & 1 == 1
-            print(getTableElement(
-                "FT"[buf[i].value], markdown=markdown), end='', file=file)
-        res = eval("(" + s + ").value",{v: buf[i] for i, v in enumerate(props + ['T', 'F'])})
+            print(
+                getTableElement("FT"[buf[i].value], markdown=markdown),
+                end="",
+                file=file,
+            )
+        res = eval(
+            "(" + s + ").value", {v: buf[i] for i, v in enumerate(props + ["T", "F"])}
+        )
         print(getTableElement("FT"[res], markdown=markdown), file=file)
         tautology = tautology and res
         conflict = conflict or res
     if tautology:
-        print("\nIt's tautological.\n", file=file)
+        print("\n == Tautological == \n", file=file)
     if not conflict:
-        print("\nIt's conflict.\n", file=file)
+        print("\n == Conflict == \n", file=file)
+    if conflict and not tautology:
+        print("\n == Contingent == \n", file=file)
 
-def main(inputFile=sys.stdin, outputFile=sys.stdout, reverse=False, markdown=False) -> None:
+
+def main(
+    inputFile=sys.stdin, outputFile=sys.stdout, reverse=False, markdown=False
+) -> None:
+    counter = 0
     for s in inputFile:
-        generateTruthTable(s, reverse=reverse,
-                           markdown=markdown, file=outputFile)
+        counter = counter + 1
+        print(f"{counter}.")
+        generateTruthTable(s, reverse=reverse, markdown=markdown, file=outputFile)
 
 
 def printHelp() -> None:
-    print("""Truth Table Generator
+    print(
+        """Truth Table Generator
     usage: [-h | --help] [-i | --input <file path>]
            [-o | --output <file path>] [-c | --console]
            [-m | --markdown] [-r | --reverse ]
@@ -148,7 +183,8 @@ def printHelp() -> None:
         generate markdown table
     [-r | --reverse]
         reverse the enumerate order (default F -> T)
-    """)
+    """
+    )
 
 
 if __name__ == "__main__":
@@ -162,8 +198,8 @@ if __name__ == "__main__":
     else:
         markdown = "-m" in args or "--markdown" in args
         reverse = "-r" in args or "--reverse" in args
-        inputFile = ''
-        outputFile = ''
+        inputFile = ""
+        outputFile = ""
         if "-i" in args:
             inputFile = args[args.index("-i") + 1]
         if "--input" in args:
@@ -175,12 +211,13 @@ if __name__ == "__main__":
         if not inputFile and not outputFile:
             main(reverse=reverse, markdown=markdown)
         elif not inputFile and outputFile:
-            with open(outputFile, "w", encoding='utf-8') as o:
+            with open(outputFile, "w", encoding="utf-8") as o:
                 main(outputFile=o, reverse=reverse, markdown=markdown)
         elif inputFile and not outputFile:
-            with open(inputFile, "r", encoding='utf-8') as i:
+            with open(inputFile, "r", encoding="utf-8") as i:
                 main(inputFile=i, reverse=reverse, markdown=markdown)
         else:
-            with open(inputFile, "r", encoding='utf-8') as i, open(outputFile, "w", encoding='utf-8') as o:
-                main(inputFile=i, outputFile=o,
-                     reverse=reverse, markdown=markdown)
+            with open(inputFile, "r", encoding="utf-8") as i, open(
+                outputFile, "w", encoding="utf-8"
+            ) as o:
+                main(inputFile=i, outputFile=o, reverse=reverse, markdown=markdown)
